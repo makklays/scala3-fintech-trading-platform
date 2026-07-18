@@ -1,0 +1,55 @@
+# === Временные файлы операционных систем ===
+.DS_Store
+Thumbs.db
+
+# === SCALA & SBT (Бэкенд) ===
+# Папки с результатами компиляции и сборки
+**/target/
+**/project/project/
+**/project/target/
+
+# Локальные файлы конфигурации сборщика
+.history
+.scala-build
+.bsp/
+.metals/
+.ammonite/
+out/
+bin/
+
+# Локальные настройки sbt кандидатов/безопасности
+**/.boot/
+**/.ivy2/
+**/.sbt/
+**/sbt.boot.lock
+**/project/boot.lock
+
+# === NODE.JS & REACT (Фронтенд) ===
+# Зависимости JavaScript
+**/node_modules/
+**/jspm_packages/
+
+# Папка финальной сборки фронтенда (Vite)
+**/dist/
+**/tmp/
+
+# Логи ошибок npm/yarn
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+eslintcache
+
+# Локальные переменные окружения (секреты, пароли)
+.env
+.env.local
+.env.*.local
+
+# === СРЕДЫ РАЗРАБОТКИ (IDE) ===
+# Настройки IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+
+# Настройки VS Code
+.vscode/
+
