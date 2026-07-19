@@ -18,7 +18,15 @@ lazy val root = project
       "io.circe"      %% "circe-generic"       % CirceVersion,
       "io.circe"      %% "circe-parser"        % CirceVersion,
       "org.typelevel" %% "log4cats-slf4j"      % "2.7.0",
-      "ch.qos.logback" % "logback-classic"     % "1.5.6"
+      "ch.qos.logback" % "logback-classic"     % "1.5.6",
+
+      // Добавьте эту строчку внутрь libraryDependencies ++= Seq( ... )
+      "org.tpolecat" %% "skunk-core" % "0.6.3",
+
+      // Добавьте это в libraryDependencies ++= Seq( ... ) в вашем build.sbt// Добавьте это в libraryDependencies ++= Seq( ... ) в вашем build.sbt
+      "org.flywaydb" % "flyway-core" % "10.15.0",
+      "org.flywaydb" % "flyway-database-postgresql" % "10.15.0",
+      "org.postgresql" % "postgresql" % "42.7.3"
     )
   )
 
