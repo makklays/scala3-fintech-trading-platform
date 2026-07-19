@@ -9,6 +9,7 @@ import domain.models.User
 import domain.TradingEngine
 import adapters.db.InMemoryUserRepository
 import adapters.http.OrderRoutes
+import natchez.Trace.Implicits.noop // Обязательный неявный параметр для трейсинга в Skunk
 
 /**
  * Main Class for the Scala 3 backend application.
@@ -22,47 +23,56 @@ import adapters.http.OrderRoutes
 object Main extends IOApp.Simple:
   private val logger = Slf4jLogger.getLogger[IO]
 
+  // Конфигурация пула соединений к PostgreSQL через Skunk в виде управляемого ресурса
+  private val databasePool: Resource[IO, Resource[IO, Session[IO]]] =
+    Session.pooled[IO](
+      host     = "localhost", // Измените на "postgres_db" при запуске внутри Docker-сети
+      port     = 5432,
+      user     = "postgres_admin",
+      database = "trading_platform",
+      password = Some("secret_password"),
+      max      = 10          // Максимальный размер пула соединений
+    )
+
   val run: IO[Unit] =
     for
-      _ <- logger.info("Initializing In-Memory Database State...")
+      _ <- logger.info("Bootstrapping Scala 3 Forex Trading Platform...")
 
-      // 1. Создаем демо-пользователя, наполняя структуру согласно новой схеме PostgreSQL
-      demoUser = User(
-        id = Some(1L),
-        username = "demo_user",
-        email = "demo@techmatrix18.com",
-        usdBalance = 50000.00, // Стартовые 50k USD
-        btcBalance = 1.25,     // Стартовые 1.25 BTC
-        password = "encrypted_password_here"
-      )
+      // Запускаем наше приложение внутри контекста пула баз данных
+      _ <- databasePool.use { pool =>
+        for
+          _ <- logger.info("Database connection pool initialized successfully.")
 
-      // 2. Инициализируем атомарный контейнер состояния базы данных в памяти (Ref)
-      dbState <- Ref.of[IO, Map[String, User]](Map("demo_user" -> demoUser))
+          // 1. Инициализируем исходящие адаптеры (Инфраструктура / DB)
+          userRepository = PostgresUserRepository(pool)
 
-      // 3. Собираем зависимости гексагональной архитектуры (Связывание слоев)
-      userRepository = InMemoryUserRepository(dbState)
-      tradingEngine  = TradingEngine(userRepository)
-      orderRoutes    = OrderRoutes(tradingEngine)
-      userRoutes     = UserRoutes(userRepository)
+          // 2. Инициализируем ядро бизнес-логики (Domain / Use Cases)
+          tradingEngine = TradingEngine(userRepository)
 
-      // 4. Оборачиваем наши HTTP-роуты в middleware для поддержки CORS (запросы от React)
-      corsService = CORS.policy.withAllowOriginAll.apply(orderRoutes.routes)
+          // 3. Инициализируем входящие HTTP/WebSocket адаптеры
+          orderRoutes = OrderRoutes(tradingEngine)
+          userRoutes = UserRoutes(userRepository)
 
-      _ <- logger.info("Starting Http4s Ember Server with WebSockets...")
+          _ <- logger.info("Starting High-Performance Ember HTTP & WebSocket Server...")
 
-      // 5. Запуск сервера с поддержкой WebSockets
-      _ <- EmberServerBuilder
-        .default[IO]
-        .withHost(ipv4"0.0.0.0")
-        .withPort(port"8080")
-        // Подключаем WebSocketBuilder на этапе инициализации HTTP-приложения
-        .withHttpWebSocketApp(wsb =>
-          val streamRoutes = StreamRoutes(wsb)
-          // Склеиваем все роуты вместе с помощью оператора <+>
-          val allRoutes = userRoutes.routes <+> orderRoutes.routes <+> streamRoutes.routes
-          CORS.policy.withAllowOriginAll.apply(allRoutes).orNotFound
-        )
-        .build
-        .use(_ => logger.info("Scala 3 Trading Platform is ONLINE!") >> IO.never)
+          // 4. Запуск неблокирующего сервера Ember с поддержкой WebSockets
+          _ <- EmberServerBuilder
+            .default[IO]
+            .withHost(ipv4"0.0.0.0")
+            .withPort(port"8080")
+            // Подключаем WebSocketBuilder (wsb) для динамической трансляции котировок FS2 в React
+            .withHttpWebSocketApp { wsb =>
+              val streamRoutes = StreamRoutes(wsb)
+
+              // Объединяем маршруты всех сущностей (User, Order, Ticker) в единую матрицу API
+              val allRoutes = userRoutes.routes <+> orderRoutes.routes <+> streamRoutes.routes
+
+              // Навешиваем CORS-политики, чтобы React-фронтенд мог отправлять запросы
+              CORS.policy.withAllowOriginAll.apply(allRoutes).orNotFound
+            }
+            .build
+            .use(_ => logger.info("Forex Trading Platform Core is ONLINE on port 8080!") >> IO.never)
+        yield ()
+      }
     yield ()
 

@@ -1,3 +1,6 @@
+import sbt.*  // Принудительный импорт sbt API для IDE
+import sbt.Keys.*
+
 val Scala3Version = "3.3.3"
 val Http4sVersion = "0.23.27"
 val CirceVersion  = "0.14.7"
