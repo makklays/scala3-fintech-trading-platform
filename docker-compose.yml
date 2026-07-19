@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # 1. База данных PostgreSQL
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: fintech_postgres
+    environment:
+      POSTGRES_DB: trading_platform
+      POSTGRES_USER: postgres_admin
+      POSTGRES_PASSWORD: secret_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  # 2. Бэкенд на Scala 3
+  backend:
+    build: ./backend
+    container_name: fintech_backend
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=postgres_db
+      - DB_PORT=5432
+      - DB_NAME=trading_platform
+      - DB_USER=postgres_admin
+      - DB_PASSWORD=secret_password
+    depends_on:
+      - postgres_db
+
+  # 3. Фронтенд на React
+  frontend:
+    build: ./frontend
+    container_name: fintech_frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+
