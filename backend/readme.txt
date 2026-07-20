@@ -83,3 +83,73 @@ val sma = SMAIndicator(series, 14) // Готово!
 
 //---------------------------------------------------------------
 
+Вариант 1. Классическая (Enterprise / Java-style) архитектура
+
+В больших корпоративных проектах (особенно в Java/Spring) гексагон делят на максимально изолированные слои.
+Здесь входящие порты отделены от исходящих, а слой application выступает явным оркестратором.
+
+backend/src/main/java/com/techmatrix18/
+├── domain/                    # Слой 1: Чистый домен (Бизнес-правила)
+│   ├── models/                # Сущности (User, Position, Ticker) — без логики БД
+│   └── exceptions/            # Бизнес-ошибки (например, InsufficientMarginException)
+│
+├── application/               # Слой 2: Оркестрация (Сценарии использования / Use Cases)
+│   └── TradingService.java    # Загружает данные из портов, вызывает домен, сохраняет результат
+│
+├── ports/                     # Слой 3: Границы гексагона (Интерфейсы)
+│   ├── in/                    # Входящие порты (Что приложение умеет делать для внешнего мира)
+│   │   └── OpenPositionUseCase.java (Интерфейс для контроллеров)
+│   └── out/                   # Исходящие порты (Что приложению нужно от внешнего мира)
+│       ├── UserRepository.java
+│       └── PositionRepository.java
+│
+└── infrastructure/            # Слой 4: Адаптеры (Инфраструктура и Фреймворки)
+    ├── adapters/
+    │   ├── in/web/            # Входящие адаптеры (Вход в систему)
+    │   │   ├── OrderController.java (Spring REST)
+    │   │   └── WebSocketHandler.java
+    │   └── out/persistence/   # Исходящие адаптеры (Выход из системы)
+    │       ├── PostgresUserRepository.java (JPA / Hibernate)
+    │       └── PostgresPositionRepository.java
+    └── config/                # Настройки Dependency Injection (Spring Beans)
+
+Вариант 2. Ваша архитектура (Прагматичная / Scala 3-style)
+
+В экосистеме Scala (Cats Effect / Typelevel) файлы получаются очень компактными. Один файл .scala может содержать сразу
+несколько связанных классов, а мощная система типов избавляет от необходимости писать десятки интерфейсов-прослоек.
+Поэтому иерархия папок делается более плоской, сохраняя при этом главный принцип гексагона — независимость домена.
+
+backend/src/main/scala/
+├── main.scala                 # Точка входа (Composition Root): собирает пулы БД и запускает сервер
+│
+├── domain/                    # Слой 1 & 2: Бизнес-логика и Сценарии (Объединены)
+│   ├── models.scala           # Все case-классы (User, Position, OrderRequest, TradeResult, Ticker)
+│   └── TradingEngine.scala    # Класс-оркестратор (Use Case), который мы утвердили. Считает маржу Forex.
+│
+├── ports/                     # Слой 3: Интерфейсы хранилищ
+│   └── Repositories.scala     # Файл содержит трейты UserRepository, PositionRepository
+│
+└── adapters/                  # Слой 4: Внешний мир (Адаптеры)
+    ├── http/                  # Входящие адаптеры (Принимают запросы)
+    │   ├── UserRoutes.scala   # HTTP эндпоинты профиля пользователя (Http4s)
+    │   ├── OrderRoutes.scala  # HTTP эндпоинты отправки ордеров (Http4s)
+    │   └── StreamRoutes.scala # WebSocket для живого стриминга котировок EUR/USD (FS2 Streams)
+    │
+    └── db/                    # Исходящие адаптеры (Сохраняют данные)
+        ├── UserSql.scala      # Описание SQL-запросов и кодеков (Skunk DSL)
+        ├── PositionSql.scala  # Описание SQL-запросов для фьючерсных позиций (Skunk DSL)
+        └── PostgresUserRepository.scala # Реализация порта через асинхронные сессии Postgres
+
+Почему вы не выделили слой application и входящие порты ports.in, как в классическом гексагоне?
+
+Для микросервиса сфокусированного на одной задаче (Forex OMS), выделение ports.in и создание TradingService поверх
+TradingEngine создало бы избыточное дублирование кода (Boilerplate).
+В Scala 3 TradingEngine берет на себя роль чистого Application-сервиса (Use Case), координируя действия. При этом главный
+инвариант Hexagonal Architecture строго соблюден: пакеты domain и ports абсолютно чисты, они зависят только от монады
+cats.effect.IO и ничего не знают про фреймворк Http4s, драйвер Skunk или базу данных PostgreSQL. Мы можем полностью
+заменить HTTP-слой на gRPC или Kafka-контейнер, изменив код только в папке adapters, а ядро системы останется нетронутым.
+
+Эта структура идеальна: она экономит время разработки, но оставляет проект полностью развязанным и готовым к enterprise-масштабированию.
+
+//---------------------------------------------------------------
+

@@ -13,5 +13,7 @@ import domain.models.User
  */
 trait UserRepository:
   def findByUsername(username: String): IO[Option[User]]
-  def updateBalances(username: String, usd: Double, btc: Double): IO[Unit]
+
+  // Обновленная сигнатура под маржинальную модель Forex
+  def updateBalances(username: String, usedMargin: Double, freeMargin: Double): IO[Unit]
 

@@ -21,14 +21,23 @@ object PositionSql:
   implicit val instantIso: Isomorphism[OffsetDateTime, Instant] =
     Isomorphism(_.toInstant, _.atOffset(java.time.ZoneOffset.UTC))
 
-  // Кодек для маппинга полей таблицы positions в case class Position
+  // Кодек для маппинга полей таблицы positions в case class Position (ровно 13 полей)
   val positionCodec: Codec[Position] =
     (int8.opt ~ int8 ~ varchar ~ numeric ~ int4 ~ varchar ~ numeric ~ numeric ~ numeric ~ numeric ~ varchar ~ timestamptz ~ timestamptz.opt).gmap[Position]
 
   // Команда на добавление (открытие) новой маржинальной позиции
+  // Порядок плейсхолдеров $ в VALUES строго совпадает с порядком полей в кодеке!
   val insertPosition: Command[Position] =
     sql"""
-      INSERT INTO positions (user_id, instrument, quantity, leverage, side, entry_price, current_price, unrealized_pnl, margin_required, status, opened_at, closed_at)
-      VALUES ($int8, $varchar, $numeric, $int4, $varchar, $numeric, $numeric, $numeric, $numeric, $varchar, $timestamptz, ${timestamptz.opt})
+      INSERT INTO positions (
+        id, user_id, instrument, quantity, leverage, side,
+        entry_price, current_price, unrealized_pnl, margin_required,
+        status, opened_at, closed_at
+      )
+      VALUES (
+        ${int8.opt}, $int8, $varchar, $numeric, $int4, $varchar,
+        $numeric, $numeric, $numeric, $numeric,
+        $varchar, $timestamptz, ${timestamptz.opt}
+      )
     """.command
 
